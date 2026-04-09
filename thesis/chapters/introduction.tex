@@ -1,0 +1,12 @@
+\chapter{Introduction}
+\label{chap:introduction}
+
+Artificial intelligence methods are increasingly used to support image interpretation tasks in digital pathology. In this context, classification systems may achieve strong predictive performance while still producing poorly calibrated or unreliable confidence estimates. This becomes especially problematic in medical settings, where overconfident errors may lead to inappropriate trust in automated predictions. For this reason, uncertainty estimation is not merely an auxiliary diagnostic output but an important component of safe AI-assisted decision support.
+
+This thesis focuses on uncertainty estimation for binary histopathology patch classification. The application setting is AI-assisted discrimination between normal tissue and metastatic tissue using publicly available pathology image data. The work does not introduce a new network architecture. Instead, it investigates how established uncertainty estimation methods can be integrated into an existing image-classification pipeline and how these methods can be evaluated in a reproducible manner.
+
+The project is implemented as a local experimental framework built around vision transformer-based image classification, configurable dataset handling, and reusable evaluation utilities. The practical objective is to compare uncertainty signals that can indicate when the model is likely to be incorrect, assess how well predicted probabilities are calibrated, and analyze whether uncertain predictions can be deferred to improve the reliability of the accepted subset of cases.
+
+The main research objective is therefore methodological: to determine how uncertainty estimation can be implemented, evaluated, and reported formally for digital pathology within the scope of a thesis project. This includes clear problem formulation, traceable implementation, appropriate metrics, and defensible presentation of experimental evidence.
+
+The remainder of the dissertation is structured as follows. \Cref{chap:purpose} states the purpose of the thesis. \Cref{chap:theory} presents the theoretical introduction and the scientific background of uncertainty estimation in digital pathology. \Cref{chap:own_work} describes the original implementation work, experimental design, and obtained results. \Cref{chap:summary} concludes the dissertation and outlines the broader significance and limitations of the work.

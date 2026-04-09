@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Project — Uncertainty in Digital Pathology{% endblock %}
+{% block content %}
+<h1>Project</h1>
+<p class="page-subtitle">Implemented evaluation methods used in this project.</p>
+
+<section class="section">
+  <div class="section-num">1. Uncertainty methods</div>
+  <div class="card">
+    <div class="info-box">
+      <ul>
+        <li><strong>Confidence baseline (MSP)</strong>: single-pass softmax confidence (`1 - MSP` as uncertainty). Used as a crude baseline only.</li>
+        <li><strong>MC Dropout</strong>: multiple stochastic forward passes with dropout active at inference; mean prediction + uncertainty from disagreement/entropy.</li>
+        <li><strong>Deep Ensemble</strong>: aggregate predictions from multiple separately trained checkpoints; used for stronger uncertainty/OOD behavior.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

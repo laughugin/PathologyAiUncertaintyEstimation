@@ -1,0 +1,10 @@
+\chapter{Summary}
+\label{chap:summary}
+
+This dissertation addressed the problem of uncertainty estimation in AI-assisted digital pathology with a focus on binary patch classification. The work showed that uncertainty estimation can be implemented in a reproducible and methodologically transparent way within a practical software framework built around public pathology data and transformer-based image classification.
+
+The dissertation combined theoretical background, implementation work, and empirical evaluation. On the theoretical side, it discussed the importance of calibration, confidence reliability, and selective prediction in medical AI. On the practical side, it introduced a modular framework that supports uncertainty-aware experimentation. On the empirical side, it demonstrated that the framework can produce coherent benchmark results suitable for formal thesis reporting.
+
+The conducted experiments also highlighted an important methodological lesson: more advanced uncertainty mechanisms do not necessarily improve results under every configuration. In the compact benchmark prepared for this dissertation, Monte Carlo dropout did not outperform the simple confidence baseline. This does not invalidate the method, but it shows the importance of careful experimental design and cautious interpretation.
+
+Overall, the dissertation fulfills its main goal by providing an implementation-centered study of uncertainty estimation for digital pathology together with a formal structure for academic reporting. The proposed framework can be extended in future work toward larger-scale experiments, stronger checkpoints, slide-level tasks, and additional reliability methods.

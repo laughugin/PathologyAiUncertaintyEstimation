@@ -1,0 +1,69 @@
+\chapter{Model and Uncertainty Estimation Methods}
+\label{chap:model_methods}
+
+\section{Base Classification Model}
+
+The experimental pipeline uses an image classification model from the Hugging Face Transformers ecosystem. The current implementation is centered on the Vision Transformer (ViT) architecture \cite{dosovitskiy2021image}, configured for binary classification. The model receives resized pathology patches as input and produces class logits that are converted to predictive probabilities through the softmax function.
+
+The thesis deliberately adopts an existing architecture instead of designing a new model. This keeps the contribution aligned with the stated scope of the project: the main objective is uncertainty estimation and evaluation rather than architecture development. In other words, the classifier acts as the predictive backbone on top of which different uncertainty estimation mechanisms are applied.
+
+\section{Methodological Scope}
+
+The repository currently implements three uncertainty-related inference modes:
+
+\begin{enumerate}
+    \item standard confidence from a single deterministic forward pass,
+    \item Monte Carlo dropout, and
+    \item deep ensembles.
+\end{enumerate}
+
+These methods were selected because they represent well-established approaches with different computational and conceptual trade-offs. They also fit the thesis requirement of evaluating recognized uncertainty estimation methods without redefining the classifier architecture itself.
+
+\section{Confidence Baseline}
+
+The simplest uncertainty proxy is derived from the maximum softmax probability. Let $p(y=c \mid x)$ denote the predicted class probability for class $c$. The confidence score of a prediction can be defined as
+\begin{equation}
+    \max_c p(y=c \mid x),
+\end{equation}
+and the associated uncertainty proxy can be written as
+\begin{equation}
+    u(x) = 1 - \max_c p(y=c \mid x).
+\end{equation}
+
+This baseline requires no additional training and no repeated inference. It is therefore computationally efficient and easy to interpret. However, it is also known to be limited: softmax confidence is often overconfident and does not reliably quantify epistemic uncertainty. In the present thesis, it serves as a reference method against which more explicit uncertainty estimation approaches can be compared.
+
+\section{Monte Carlo Dropout}
+
+Monte Carlo dropout follows the interpretation of dropout as an approximate Bayesian inference mechanism \cite{gal2016dropout}. During evaluation, dropout remains enabled and the same input is passed through the network multiple times. Each stochastic forward pass yields a slightly different prediction. The repeated outputs are then aggregated to obtain an average predictive distribution.
+
+If $T$ stochastic forward passes are performed, the aggregated predictive probability can be written as
+\begin{equation}
+    \hat{p}(y \mid x) = \frac{1}{T} \sum_{t=1}^{T} p_t(y \mid x),
+\end{equation}
+where $p_t(y \mid x)$ denotes the probability vector from the $t$-th pass.
+
+In the implementation, Monte Carlo dropout is realized by setting the model to training mode during inference, sampling multiple predictions, averaging the resulting probabilities, and converting the mean probability vector back to log-space for downstream metric computation. This method is attractive because it introduces a distribution over predictions without requiring multiple separately trained models. Its main drawback is the increased inference cost, which grows linearly with the number of stochastic passes.
+
+\section{Deep Ensembles}
+
+Deep ensembles estimate uncertainty by combining predictions from several independently trained models \cite{lakshminarayanan2017simple}. Each model shares the same architecture but differs because of random initialization, training order, or other stochastic effects. The final predictive distribution is obtained by averaging the member probabilities.
+
+For an ensemble of $M$ models, the predictive distribution can be written as
+\begin{equation}
+    \hat{p}(y \mid x) = \frac{1}{M} \sum_{m=1}^{M} p_m(y \mid x).
+\end{equation}
+
+Deep ensembles are widely regarded as a strong baseline for uncertainty estimation because they often provide better-calibrated predictions than single deterministic models. Their main disadvantage is practical rather than theoretical: they require several trained checkpoints, increasing both computation time and storage requirements. In the current codebase, deep ensembles are implemented through a list of checkpoint paths that are loaded separately and evaluated jointly.
+
+\section{Derived Uncertainty Quantities}
+
+The implementation reports uncertainty-related quantities derived from predictive probabilities. Two particularly important ones are predictive entropy and one-minus-maximum-softmax-probability. For a binary or multiclass predictive distribution $p(y \mid x)$, entropy is defined as
+\begin{equation}
+    H[p(y \mid x)] = - \sum_c p(y=c \mid x) \log p(y=c \mid x).
+\end{equation}
+
+Entropy is used as a ranking signal for identifying uncertain samples. The implementation also retains $1-\text{MSP}$ as a simpler baseline uncertainty score. Both signals are evaluated by how well they separate correct predictions from incorrect ones.
+
+\section{Implementation Boundaries}
+
+The thesis text must remain faithful to the implemented scope. Conformal prediction, temperature scaling as a primary method, and other advanced uncertainty frameworks may be discussed in related work or future work, but they are not central implemented methods of the present contribution. The core implementation described in this thesis is therefore restricted to confidence, Monte Carlo dropout, and deep ensembles as supported by the current codebase.

@@ -1,0 +1,65 @@
+\chapter{Theoretical Introduction}
+\label{chap:theory}
+
+\section{Digital Pathology and AI Support}
+
+Digital pathology enables histopathological tissue slides to be scanned, stored, and analyzed computationally. This has created favorable conditions for the use of machine learning and deep learning methods in diagnostic support, screening, triage, and research workflows. Among the most common tasks are tissue classification, metastasis detection, segmentation, and detection of diagnostically relevant structures.
+
+Despite strong progress in predictive modeling, medical AI systems face an important limitation: a classifier may produce a prediction with a high confidence score even when the underlying decision is unreliable. In pathology, this issue is particularly important because tissue appearance may vary substantially due to staining, scanning conditions, biological heterogeneity, and dataset shift. As a result, uncertainty estimation has become an important research topic for trustworthy pathology AI \cite{linmans2022ood,thagaard2020datasetshift}.
+
+Recent pathology-oriented studies further support this motivation. Uncertainty estimation has been investigated for relapse prediction from histopathology, artifact detection, and nuclei-related analysis, with repeated emphasis on calibration, robustness, and trustworthy decision support \cite{dolezal2022uncertainty,kanwal2024artifact,gudhe2023nuclei}. These works reinforce the view that uncertainty should be treated as a clinically relevant property of AI systems rather than as a purely technical add-on.
+
+\section{Related Literature in Histopathology Uncertainty}
+
+The literature collected for this dissertation shows that uncertainty estimation in histopathology is studied across several distinct task families rather than in a single unified setting. One line of work focuses on direct predictive uncertainty for pathology classification and distribution shift analysis. In this area, Linmans et al. and Thagaard et al. showed that uncertainty quality must be assessed not only under in-distribution evaluation but also under realistic dataset shifts and out-of-distribution conditions \cite{linmans2022ood,thagaard2020datasetshift}. These findings are directly relevant to this dissertation because they support the inclusion of calibration and robustness-oriented evaluation rather than accuracy alone.
+
+Another group of studies investigates uncertainty in more specialized pathology tasks. Dolezal et al. examined uncertainty estimation for lung cancer relapse prediction from histopathology, while Kanwal et al. studied uncertainty-aware artifact detection in histological images \cite{dolezal2022uncertainty,kanwal2024artifact}. Gudhe et al. applied Bayesian dropout to nuclei instance segmentation, demonstrating that uncertainty-aware deep learning is also relevant beyond classification tasks \cite{gudhe2023nuclei}. Similarly, Bhattacharyya et al. investigated uncertainty modelling for tumour cellularity estimation, and Kinakh et al. described posterior-sampling-based uncertainty estimation for PD-L1 segmentation from H\&E images \cite{bhattacharyya2025tumour,kinakh2025pdl1}.
+
+Recent work also extends uncertainty-aware learning to weakly supervised and multiple-instance settings. Park et al. proposed uncertainty-based data-wise label smoothing for calibration in histopathology image classification under a multiple-instance learning framework \cite{park2025udls}. Sunho Park et al. used deep Gaussian processes with uncertainty estimation for microsatellite instability prediction from histology, again highlighting the role of predictive distributions rather than point predictions alone \cite{park2025dgp}. Taken together, these studies show that uncertainty estimation is increasingly treated as a core component of reliable pathology AI rather than as an optional diagnostic statistic.
+
+\section{Uncertainty Estimation}
+
+In a classification setting, the model outputs a predictive distribution $p(y \mid x)$ over the class labels for input $x$. The central question is whether this distribution carries useful information about the reliability of the prediction. A confidence score alone is often insufficient because modern neural networks may be poorly calibrated \cite{guo2017calibration}. Therefore, uncertainty estimation methods aim to provide signals that better reflect the risk of error or the limits of model knowledge.
+
+For a predictive distribution over classes, one common uncertainty measure is predictive entropy:
+\begin{equation}
+    H[p(y \mid x)] = - \sum_c p(y=c \mid x) \log p(y=c \mid x).
+\end{equation}
+Another simple uncertainty proxy is one minus the maximum softmax probability:
+\begin{equation}
+    u(x) = 1 - \max_c p(y=c \mid x).
+\end{equation}
+
+These quantities are not equivalent to a full probabilistic characterization of uncertainty, but they are useful in practice for ranking predictions from more certain to less certain.
+
+\section{Selected Methods}
+
+The present dissertation focuses on three established approaches that are supported by the current implementation.
+
+\subsection{Confidence Baseline}
+
+The most basic approach uses the softmax output directly and interprets the maximum predicted class probability as confidence. This baseline is computationally cheap and easy to interpret, but it is frequently overconfident and should therefore be treated as a reference rather than a complete uncertainty solution.
+
+\subsection{Monte Carlo Dropout}
+
+Monte Carlo dropout keeps dropout active at inference time and performs multiple stochastic forward passes \cite{gal2016dropout}. The resulting predictions are averaged to approximate a predictive posterior. This approach is attractive because it can introduce stochasticity without requiring multiple separately trained models.
+
+\subsection{Deep Ensembles}
+
+Deep ensembles combine the predictions of several independently trained models \cite{lakshminarayanan2017simple}. In many studies, ensembles provide a strong uncertainty baseline because they capture variation across multiple parameter solutions. Their disadvantage is increased training and storage cost.
+
+\section{Calibration and Selective Prediction}
+
+Calibration is a key theoretical and practical concept in this dissertation. A model is well calibrated if events predicted with probability $p$ occur with empirical frequency close to $p$. In practice, calibration is typically evaluated using reliability diagrams, Expected Calibration Error, negative log-likelihood, and the Brier score.
+
+Selective prediction extends the role of uncertainty by allowing the system to defer uncertain cases rather than forcing a prediction for every input. This is particularly relevant in medical AI because uncertain or borderline cases may be routed to human experts. The risk-coverage curve and the area under this curve provide a quantitative way to assess this behavior.
+
+The reviewed literature also suggests that calibration and uncertainty quantification should not be interpreted only in the context of classification. Broader work on uncertainty metrics and regression calibration indicates that the choice of predictive distribution and loss formulation can affect the meaning of uncertainty estimates \cite{levi2022regression,jordahn2026heteroskedastic}. Although these methods are outside the direct implementation scope of the present dissertation, they are useful for positioning future work and for showing that uncertainty estimation extends beyond the confidence scores used in standard classifiers.
+
+\section{Digital Pathology Context}
+
+The pathology domain introduces additional challenges for uncertainty estimation. Predictive uncertainty may be affected by scanner variability, stain variation, class imbalance, ambiguous tissue appearance, and distribution shift between cohorts. Prior pathology-focused studies have therefore emphasized both calibration quality and robustness under shift \cite{linmans2022ood,thagaard2020datasetshift}. These considerations motivate the present thesis to evaluate uncertainty not only as a mathematical property of the model outputs, but also as a practically meaningful reliability signal.
+
+\section{Scope of the Dissertation}
+
+Many additional approaches exist in the broader uncertainty literature, including conformal prediction, Bayesian neural networks, and post-hoc calibration methods. Some of these are highly relevant conceptually and may be discussed in future work. However, the core theoretical and experimental focus of this dissertation is intentionally restricted to the methods that are implemented in the current codebase and can therefore be described, tested, and reported rigorously.

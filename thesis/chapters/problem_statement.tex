@@ -1,0 +1,19 @@
+\chapter{Problem Statement}
+\label{chap:problem_statement}
+
+Digital pathology workflows increasingly rely on digitized tissue slides and computational image analysis. When machine learning models are used for classification in this domain, predictive accuracy alone is insufficient for responsible deployment. A model may output a class label together with a high softmax score even when the input is ambiguous, shifted relative to the training distribution, or simply misclassified. In such cases, the confidence score may fail to reflect true predictive reliability.
+
+The core problem addressed in this thesis is therefore the estimation and evaluation of predictive uncertainty in AI-assisted digital pathology. More specifically, the work considers a binary patch-classification setting and asks whether established uncertainty estimation methods can provide signals that are informative about prediction correctness and useful for downstream decision policies such as deferral.
+
+The thesis adopts an implementation-oriented scope. The objective is not to derive a new Bayesian model or a novel pathology architecture, but to build and document a reproducible experimental pipeline in which uncertainty can be measured, compared, and discussed formally. This includes four concrete sub-problems:
+
+\begin{enumerate}
+    \item selecting a suitable digital pathology task and dataset with clear binary labels,
+    \item defining a reproducible classification pipeline based on an existing vision model,
+    \item implementing established uncertainty estimation methods that can operate on that classifier, and
+    \item evaluating those methods using predictive, calibration, and selective-prediction criteria.
+\end{enumerate}
+
+In medical AI, uncertainty estimates are valuable for at least three reasons. First, they can identify predictions that are likely to be incorrect. Second, they can support calibration analysis by quantifying whether predicted probabilities correspond to empirical correctness. Third, they can enable selective prediction, in which uncertain cases are deferred to human review rather than being automatically accepted. This is particularly relevant for pathology, where diagnostic decisions remain high-stakes and expert oversight is essential.
+
+The thesis therefore frames uncertainty estimation as a practical reliability layer around a pathology classifier. The main output of the work is a documented and extensible framework that supports formal experimentation and thesis reporting for uncertainty-aware pathology classification.

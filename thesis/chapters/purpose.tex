@@ -1,0 +1,18 @@
+\chapter{Purpose of the Thesis}
+\label{chap:purpose}
+
+The main purpose of this dissertation is to examine how uncertainty estimation can be implemented and evaluated for AI-assisted digital pathology in a reproducible and formally documented manner. The study is positioned as an implementation-oriented thesis. Its aim is not to develop a novel classification architecture, but to determine how established uncertainty estimation methods can be integrated into a practical pathology classification pipeline and assessed using scientifically justified metrics.
+
+The dissertation addresses the following specific objectives:
+
+\begin{enumerate}
+    \item to define a suitable binary pathology classification task based on publicly available data,
+    \item to implement a reproducible experimental pipeline for model inference and uncertainty evaluation,
+    \item to apply selected uncertainty estimation methods that are widely recognized in the literature,
+    \item to evaluate these methods using predictive, calibration, and selective-prediction criteria, and
+    \item to present the implementation and the obtained results in a form suitable for a formal academic dissertation.
+\end{enumerate}
+
+The practical motivation for this work arises from the fact that high predictive accuracy alone is insufficient in medical applications. In pathology, incorrect but overconfident predictions may be particularly problematic because they can encourage inappropriate reliance on automated outputs. For this reason, the thesis treats uncertainty estimation as an important reliability layer that complements the classifier itself.
+
+The intended outcome of the dissertation is therefore twofold. First, it should provide an operational software framework that supports uncertainty-aware experimentation in digital pathology. Second, it should provide a clear methodological and theoretical account of how such experiments should be interpreted and reported in a thesis context.

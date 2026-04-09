@@ -1,0 +1,10 @@
+\chapter{Conclusion}
+\label{chap:conclusion}
+
+This thesis investigates uncertainty estimation for AI-assisted digital pathology as an implementation-driven and evaluation-focused problem. Using a reproducible patch-classification pipeline centered on PCAM and a transformer-based image classifier, the work studies how established uncertainty estimation methods can be integrated into a practical workflow and assessed using predictive, calibration, and selective-prediction metrics.
+
+The main value of the project lies in its methodological clarity. Rather than claiming a new predictive model, the thesis formalizes how confidence-based uncertainty, Monte Carlo dropout, and deep ensembles can be implemented and analyzed within a single experimental framework. This supports transparent experimentation and creates a basis for future extension to stronger datasets, better-trained checkpoints, or additional uncertainty methods.
+
+The current limitations are also clear. The evaluation is based primarily on patch-level data, which is only a partial proxy for real clinical pathology workflows. Moreover, some methods require stronger checkpoint management than is currently available in every saved artifact. These constraints do not invalidate the contribution, but they define the boundary of the conclusions that can be drawn.
+
+Future work may extend the framework to slide-level aggregation, out-of-distribution evaluation at greater scale, and additional reliability methods such as post-hoc calibration or conformal prediction. Even within its current scope, however, the thesis demonstrates that formal uncertainty evaluation is both feasible and necessary for trustworthy AI-assisted digital pathology.

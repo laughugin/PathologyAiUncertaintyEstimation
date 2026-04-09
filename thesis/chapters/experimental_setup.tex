@@ -1,0 +1,40 @@
+\chapter{Experimental Setup and Evaluation Protocol}
+\label{chap:experimental_setup}
+
+\section{Pipeline Design}
+
+The experimental pipeline is organized as a reproducible sequence of dataset loading, model inference, uncertainty estimation, metric computation, and artifact export. Configuration is handled through YAML files and command-line entry points, which makes the workflow traceable and easy to rerun. Run artifacts are saved to dedicated output directories together with configuration snapshots and metric files.
+
+The pipeline supports evaluation-only runs as well as training followed by evaluation. For the current thesis emphasis, evaluation is the primary mode because the central question concerns the quality of uncertainty estimates produced by a classifier rather than the optimization of training procedures.
+
+\section{Reproducibility}
+
+Reproducibility is supported through explicit random seeding, stored configuration files, deterministic sample selection for bounded experiments, and saved metric outputs in JSON format. This design is important for thesis work because it enables direct correspondence between written claims and executable artifacts.
+
+\section{Evaluation Dimensions}
+
+The evaluation is divided into four complementary dimensions.
+
+\subsection{Predictive Performance}
+
+Standard predictive metrics are used to assess the quality of the underlying classifier. These include accuracy, balanced accuracy, F1 score, ROC AUC, PR AUC, sensitivity, specificity, and the confusion matrix. These metrics describe predictive discrimination but do not by themselves indicate whether the model is well calibrated or whether its uncertainty scores are informative.
+
+\subsection{Calibration}
+
+Calibration measures whether predicted probabilities correspond to empirical correctness frequencies. The current implementation reports Expected Calibration Error (ECE), negative log-likelihood (NLL), Brier score, and reliability-bin information used to draw reliability diagrams. Calibration is essential because an uncertainty-aware system should not only rank uncertain cases, but should also avoid systematically overconfident probability estimates.
+
+\subsection{Uncertainty Quality}
+
+Uncertainty quality is evaluated through error-detection analysis. The key question is whether uncertainty scores assign higher values to incorrect predictions than to correct ones. In the implementation, this is measured using AUROC and AUPRC for the task of discriminating errors from correct predictions using entropy and one-minus-maximum-softmax-probability. This ranking-oriented perspective is useful, but it should not be interpreted as a complete substitute for calibration analysis.
+
+\subsection{Selective Prediction}
+
+Selective prediction addresses a practical deployment scenario in which the model is allowed to abstain from uncertain cases. The implementation reports risk-coverage curves and the area under the risk-coverage curve (AURC). Lower risk at a given coverage level indicates that uncertainty scores can support safer triage or human-in-the-loop review. The pipeline also includes validation-fitted deferral thresholds, which are applied to evaluation data to study threshold transferability.
+
+\section{Interpretation for Digital Pathology}
+
+The practical interpretation of these metrics must remain aligned with the pathology use case. In a medical context, an uncertainty score is useful if it helps identify cases requiring further review, reduces trust in unreliable predictions, and improves the reliability of accepted predictions under selective prediction. For this reason, the thesis considers predictive performance, calibration, uncertainty ranking, and deferral behavior jointly rather than relying on a single summary number.
+
+\section{Current Experimental Limitation}
+
+One implementation constraint is that not all saved experimental artifacts in the repository are equally suitable for thesis reporting. Some previously generated summaries were based on very small sample counts intended for quick checks. Therefore, the thesis results section should prioritize consistent and sufficiently sized evaluation runs, or explicitly state when a method could not be compared under identical conditions because the necessary checkpoints were unavailable.

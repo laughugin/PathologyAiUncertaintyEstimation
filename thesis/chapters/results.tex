@@ -1,0 +1,48 @@
+\chapter{Results}
+\label{chap:results}
+
+This chapter reports a reproducible benchmark generated specifically for the present thesis draft. Earlier repository artifacts were useful for exploration, but they were not all produced under identical conditions. To avoid mixing exploratory and formal evidence, the quantitative discussion below is restricted to a compact benchmark that can be traced directly to saved run artifacts.
+
+\section{Benchmark Provenance}
+
+A compact ViT checkpoint was first trained on a bounded PCAM subset consisting of 1000 training samples and 200 validation samples for one epoch. This run achieved a best validation accuracy of 0.835. The resulting checkpoint was then evaluated on 512 test samples under two uncertainty settings: standard confidence and Monte Carlo dropout with 30 stochastic passes. All runs used the same random seed and the same evaluation pipeline.
+
+This benchmark is intentionally modest in scale. Its purpose is not to establish state-of-the-art performance, but to provide a fully reproducible basis for formal thesis reporting.
+
+\section{Quantitative Results}
+
+\begin{table}[H]
+    \centering
+    \caption{Predictive and uncertainty-related results on the 512-sample PCAM test benchmark. Lower is better for ECE, Brier score, and AURC.}
+    \label{tab:benchmark_results}
+    \begin{tabular}{lccccc}
+        \toprule
+        Method & Accuracy & ROC AUC & ECE & Brier & AURC \\
+        \midrule
+        Confidence & 0.8535 & 0.9359 & 0.0231 & 0.1008 & 0.0414 \\
+        MC Dropout & 0.8535 & 0.9359 & 0.0231 & 0.1008 & 0.0414 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+The trained checkpoint produced reasonably strong predictive behavior for such a small training run, with test accuracy above 0.85 and ROC AUC above 0.93 for both compared methods. Calibration was also relatively good in absolute terms, with ECE close to 0.023 and Brier score close to 0.101.
+
+From the perspective of method comparison, however, the two evaluated uncertainty settings were effectively indistinguishable in this benchmark. Confidence and Monte Carlo dropout yielded numerically identical predictive metrics and virtually identical calibration and selective-prediction values. In practical terms, this means that no measurable benefit of Monte Carlo dropout was observed in the present compact experiment.
+
+\section{Selective Prediction Interpretation}
+
+The area under the risk-coverage curve was approximately 0.041 for both methods, which indicates that uncertainty-based ranking was informative enough to keep risk low at reduced coverage. At the same time, the target-risk summaries were extremely conservative: for target risks of 0.01, 0.02, and 0.05, the corresponding retained coverage was only 0.00195, meaning that almost all samples would need to be deferred. This is an important finding for the thesis because it shows that good global metrics do not automatically translate into operationally useful deferral thresholds.
+
+\section{Discussion}
+
+Two conclusions follow from this benchmark. First, uncertainty evaluation is feasible and reproducible within the implemented framework. The pipeline successfully supports training, checkpoint reuse, metric computation, and structured comparison. Second, stronger uncertainty methods do not automatically improve results in a visible way under every experimental setting. In this compact benchmark, Monte Carlo dropout did not outperform the simple confidence baseline.
+
+Several explanations are possible. The checkpoint was trained on a relatively small subset, which may reduce the opportunity for method differences to emerge clearly. In addition, the particular model configuration may not yield sufficiently diverse stochastic dropout predictions at inference time. These observations should be discussed as limitations rather than overinterpreted as a general verdict on Monte Carlo dropout.
+
+\section{Deep Ensemble Status}
+
+Deep ensembles are implemented in the repository and are therefore part of the methodological contribution. However, a comparable set of ensemble checkpoints was not available in the current reproducible benchmark setup. For this reason, deep ensembles are described in the methods chapter but omitted from the final quantitative comparison in this draft. This restriction should be stated explicitly in the submitted thesis so that the implementation scope and the evaluated scope are not conflated.
+
+\section{Reporting Rule}
+
+Only results backed by clearly reproducible artifacts should be presented as final quantitative claims. Earlier exploratory outputs in the repository may still be useful for internal analysis, but the benchmark above is the thesis-safe reference result for the current project state.

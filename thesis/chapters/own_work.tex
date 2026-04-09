@@ -1,0 +1,61 @@
+\chapter{Own Work}
+\label{chap:own_work}
+
+\section{Research Material and Task Definition}
+
+The practical part of the dissertation is based primarily on the PatchCamelyon (PCAM) dataset \cite{veeling2018rotation,pcamchallenge}. PCAM is a patch-level histopathology benchmark derived from CAMELYON data and provides a binary classification task suitable for uncertainty evaluation. In this dissertation, the task is defined as classification of image patches into normal tissue and metastatic tissue classes.
+
+PCAM was selected because it offers a clear binary setup, established usage in digital pathology research, and straightforward support within the implemented software pipeline. At the same time, the dissertation recognizes that patch-level analysis is not fully equivalent to real slide-level clinical decision making. Therefore, the dataset is treated as a controlled benchmark for methodological study rather than as a complete model of the pathology workflow.
+
+\section{Implemented Software Framework}
+
+The main original contribution of the dissertation is the implementation of a structured experimental framework for uncertainty evaluation. The framework is organized as a modular Python project with separate components for configuration, dataset handling, model loading, uncertainty estimation, metric computation, run orchestration, and artifact export.
+
+The implementation supports:
+
+\begin{itemize}
+    \item configuration-driven execution through YAML files,
+    \item evaluation-only runs and training-plus-evaluation runs,
+    \item dataset backends for PCAM, folder-based data, and CSV-defined data,
+    \item transformer-based image classification models,
+    \item uncertainty methods based on confidence, Monte Carlo dropout, and deep ensembles,
+    \item automatic computation of predictive and uncertainty metrics, and
+    \item export of JSON summaries and plots for thesis reporting.
+\end{itemize}
+
+This design was chosen to ensure that the software itself supports the methodological requirements of the dissertation, especially reproducibility and traceability.
+
+\section{Model and Experimental Configuration}
+
+The implementation uses a Vision Transformer classifier adapted for binary output \cite{dosovitskiy2021image}. The model is loaded through the Hugging Face ecosystem and can optionally be combined with local checkpoints produced by the training pipeline. This allows the same architecture to be used both as a pretrained starting point and as a fine-tuned pathology classifier.
+
+For the formal benchmark prepared for this dissertation draft, a compact training run was performed on a bounded subset of PCAM. The training configuration used 1000 training samples, 200 validation samples, one training epoch, and a batch size of four. Although this setup is intentionally limited, it provides a reproducible checkpoint that is sufficient for thesis-level demonstration of the pipeline.
+
+\section{Evaluation Methodology}
+
+The implemented evaluation covers four main dimensions:
+
+\begin{itemize}
+    \item predictive performance, including accuracy and ROC AUC,
+    \item calibration, including ECE and the Brier score,
+    \item uncertainty quality through error-detection analysis, and
+    \item selective prediction through risk-coverage curves and AURC.
+\end{itemize}
+
+This combination was selected because uncertainty estimation should not be judged by a single metric. A method may produce useful uncertainty rankings while still being poorly calibrated, or it may appear well calibrated while being operationally weak under deferral. The chosen evaluation protocol therefore aims to capture reliability from several complementary perspectives.
+
+\section{Obtained Results}
+
+The compact trained checkpoint reached a validation accuracy of 0.835. It was then used in a matched benchmark on 512 samples from the PCAM test split. Under this benchmark, both the confidence baseline and Monte Carlo dropout achieved an accuracy of 0.8535 and a ROC AUC of 0.9359. Calibration was relatively good, with ECE close to 0.0231 and Brier score close to 0.1008. The corresponding AURC value was 0.0414 for both evaluated methods.
+
+These results show that the implemented framework is able to produce reproducible, thesis-ready experimental evidence. At the same time, the benchmark revealed no measurable advantage of Monte Carlo dropout over the simple confidence baseline in the tested configuration. This observation is important because it shows that more sophisticated uncertainty procedures do not automatically yield better outcomes in every setting.
+
+\section{Interpretation of the Results}
+
+The obtained results should be interpreted carefully. The benchmark is intentionally compact and serves primarily to validate the pipeline and support formal reporting. It is therefore not designed to produce state-of-the-art pathology performance. Nevertheless, it demonstrates that the implemented framework is functional and that it supports meaningful analysis of calibration and selective prediction.
+
+The dissertation also includes deep ensemble support at the implementation level. However, a comparable set of ensemble checkpoints was not available in the final reproducible benchmark used for this draft. For this reason, deep ensembles are included in the methodological description but not in the final quantitative comparison. This distinction between implemented scope and evaluated scope is important for scientific clarity.
+
+\section{Original Contribution}
+
+The original contribution of the dissertation lies primarily in the implementation and formalization of the uncertainty evaluation workflow. The work integrates dataset handling, model inference, uncertainty estimation, evaluation metrics, and thesis-oriented reporting into a single reproducible framework. In this sense, the dissertation should be understood as an implementation and methodology contribution with direct relevance to trustworthy AI in digital pathology.

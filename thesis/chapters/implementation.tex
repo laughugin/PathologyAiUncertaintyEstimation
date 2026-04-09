@@ -1,0 +1,45 @@
+\chapter{Implementation}
+\label{chap:implementation}
+
+\section{Software Structure}
+
+The implementation is organized as a modular Python project. The main executable framework is contained in the `uncertainty_lab` package, while the `experiments` directory contains supplementary scripts for evaluation workflows and thesis-oriented batch execution. This separation is useful from a thesis perspective because it distinguishes reusable pipeline components from one-off experimental entry points.
+
+At a high level, the implementation is divided into the following subsystems:
+
+\begin{itemize}
+    \item configuration loading and merging,
+    \item dataset preparation and dataloader construction,
+    \item model creation and checkpoint loading,
+    \item uncertainty-aware inference,
+    \item metric computation and plot generation, and
+    \item optional training and benchmark orchestration.
+\end{itemize}
+
+\section{Configuration Layer}
+
+Configuration is handled through YAML files and a merge utility that combines user-supplied settings with repository defaults. This design allows the same code path to support evaluation-only experiments, training runs, and benchmark comparisons without duplicating logic. Each run stores a configuration snapshot in the corresponding output directory, which strengthens traceability and reproducibility in the written thesis.
+
+\section{Data Handling}
+
+The pipeline supports three dataset modes: PCAM, folder-based binary datasets, and CSV-defined datasets. For the present thesis, PCAM is the primary dataset. Data loading is implemented through dedicated factory functions that resolve dataset roots, apply ImageNet-style preprocessing, select the appropriate split, and optionally subsample the dataset for bounded experiments. The factory design makes the evaluation code independent of the dataset source, which improves reuse and keeps the methodological discussion consistent.
+
+\section{Model Loading}
+
+Model construction is based on Hugging Face image classification models configured for binary output. The implementation supports both a plain pretrained initialization and the loading of local checkpoints produced by the training pipeline. For deep ensembles, several checkpoints can be loaded into separate model instances. This explicit loading strategy is appropriate for thesis work because it makes the provenance of each evaluation run transparent.
+
+\section{Uncertainty Inference Layer}
+
+The uncertainty layer is implemented through a small method abstraction. Each method returns per-sample logits after applying its own inference strategy. The deterministic confidence mode performs one forward pass. Monte Carlo dropout performs repeated stochastic passes and averages the probabilities. Deep ensembles evaluate several model instances and average their predicted probabilities. Because the downstream metric functions operate on aggregated logits, the evaluation stage remains method-agnostic once inference has been completed.
+
+\section{Metric and Artifact Generation}
+
+After inference, the pipeline computes predictive performance, calibration metrics, uncertainty-quality metrics, and selective-prediction metrics. The results are serialized to JSON so that they can be reused directly in the thesis. The implementation also generates plots such as reliability diagrams and risk-coverage curves. This is particularly useful for a formal write-up, because the same run directory contains both the numeric evidence and the associated visual material.
+
+\section{Training Support}
+
+Although model development is not the main contribution of the thesis, the codebase also supports fine-tuning of the base classifier. Training uses separate training and validation loaders, tracks epoch-level validation accuracy, and stores both the best and last checkpoints. This allows later evaluation runs to reference a stable saved checkpoint rather than only a transient in-memory model state.
+
+\section{Implementation Relevance for the Thesis}
+
+From the perspective of the written thesis, the most important implementation contribution is not complexity for its own sake, but the disciplined separation of responsibilities. The architecture of the code mirrors the methodological structure of the thesis: data, model, uncertainty method, evaluation, and result export are treated as distinct components. This makes the implementation easier to explain formally and supports reproducible experimentation.

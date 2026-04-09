@@ -1,0 +1,8 @@
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+This thesis studies uncertainty estimation for AI-assisted digital pathology in a binary patch-classification setting. The practical focus is on PatchCamelyon (PCAM), where the task is to distinguish normal tissue from metastatic tissue patches. Instead of proposing a new predictive architecture, the work evaluates how established uncertainty estimation methods can be applied to an existing vision classification pipeline and how their outputs can be assessed in a medically relevant and methodologically reproducible manner.
+
+The implemented framework supports standard prediction confidence, Monte Carlo dropout, and deep ensembles, together with evaluation of predictive performance, calibration, uncertainty-based error detection, and selective prediction. The thesis documents the full experimental pipeline, including dataset handling, model configuration, evaluation metrics, and reporting conventions. It also discusses the limitations of patch-level experimentation and the implications of uncertainty estimation for safer human-in-the-loop decision support in pathology.
+
+The central contribution of the work is a reproducible implementation and formal analysis framework for uncertainty evaluation rather than the invention of a novel model. This makes the thesis suitable as an implementation-driven study with clear methodological scope and practical relevance.

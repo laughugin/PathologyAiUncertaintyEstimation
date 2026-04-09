@@ -1,0 +1,1053 @@
+{% extends "base.html" %}
+{% block title %}Results — Uncertainty in Digital Pathology{% endblock %}
+{% block content %}
+<h1>Results</h1>
+<p class="page-subtitle">
+  End-to-end uncertainty evaluation for PCAM (patch-level). This page covers predictive performance, calibration, uncertainty quality, selective prediction, and shift/OOD robustness.
+</p>
+
+<section class="section">
+  <div class="section-num">0. How to use this page</div>
+  <div class="card">
+    <div class="info-box">
+      <p><strong>Recommended order</strong>: (1) choose model/method, (2) run Full thesis evaluation, (3) run Shift/OOD evaluation, (4) run All evaluations for one combined thesis summary.</p>
+      <ul>
+        <li><strong>Why this is needed</strong>: uncertainty should be evaluated beyond accuracy, including calibration and behavior under distribution shift.</li>
+        <li><strong>Dataset scope</strong>: current implementation is PCAM-only; slide-level output is provided as a PCAM proxy aggregation.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-num">1. Model</div>
+  <div class="card">
+    <p>Select a trained run and uncertainty method.</p>
+    <div class="info-box">
+      <ul>
+        <li><strong>Confidence (single pass / MSP)</strong>: crude baseline only; typically overconfident and not suitable as primary uncertainty evidence.</li>
+        <li><strong>MC Dropout</strong>: stochastic test-time passes for epistemic uncertainty approximation.</li>
+        <li><strong>Deep Ensemble</strong>: stronger uncertainty baseline using multiple trained members (if available).</li>
+      </ul>
+    </div>
+    <div class="form-row" style="flex-wrap:wrap;gap:1rem;margin-bottom:0.5rem;">
+      <div class="form-group">
+        <label for="run-select">Run</label>
+        <select id="run-select" style="min-width:16rem;">
+          <option value="">Latest run</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="unc-method">Uncertainty method</label>
+        <select id="unc-method">
+          <option value="confidence">Confidence baseline (single pass / MSP)</option>
+          <option value="mc_dropout" selected>MC Dropout (recommended)</option>
+          <option value="deep_ensemble">Deep Ensemble</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="mc-samples">MC samples</label>
+        <input type="number" id="mc-samples" value="30" min="2" max="100" step="1" style="width:6rem;">
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-num">2. Draw random sample</div>
+  <div class="card">
+    <p>Draw a random patch from the selected split (ground truth is initially hidden).</p>
+    <div class="info-box">
+      <p><strong>Purpose</strong>: quick qualitative sanity check before running full quantitative evaluation.</p>
+    </div>
+    <div class="form-row" style="flex-wrap:wrap;gap:1rem;margin-bottom:0.75rem;">
+      <div class="form-group">
+        <label for="eval-split">Split</label>
+        <select id="eval-split">
+          <option value="train">Train</option>
+          <option value="val">Validation</option>
+          <option value="test" selected>Test</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="eval-n">Batch N</label>
+        <input type="number" id="eval-n" value="10" min="1" max="50" step="1" style="width:6.5rem;">
+      </div>
+    </div>
+    <button class="btn btn-primary" id="btn-random">Draw random sample</button>
+    <button class="btn" id="btn-batch" style="margin-left:0.5rem;">Run batch evaluate</button>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-num">3. Sample and prediction</div>
+  <div class="card" id="card-sample" style="display:none;">
+    <p><strong>Test index:</strong> <span id="sample-idx">—</span></p>
+    <div style="display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-start;">
+      <div>
+        <div class="metric-label">Patch (ground truth hidden)</div>
+        <img id="sample-img" src="" alt="Patch" style="width:192px;height:192px;border:1px solid var(--border);border-radius:4px;">
+      </div>
+      <div>
+        <button class="btn btn-primary" id="btn-predict" style="display:block;margin-bottom:0.5rem;">Run model</button>
+        <div id="pred-result" style="display:none;">
+          <div class="metric-label">Model prediction</div>
+          <p style="margin:0.25rem 0;"><strong id="pred-label">—</strong> <span id="pred-conf"></span></p>
+        </div>
+        <button class="btn" id="btn-reveal" style="display:none;margin-top:0.5rem;">Reveal ground truth</button>
+        <div id="truth-result" style="display:none;margin-top:0.5rem;">
+          <div class="metric-label">Ground truth</div>
+          <p style="margin:0.25rem 0;"><strong id="truth-label">—</strong></p>
+          <p style="margin:0.25rem 0;" id="correct-msg"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-num">4. Batch results</div>
+  <div class="card">
+    <div class="info-box">
+      <p><strong>Why this is useful</strong>: small-batch diagnostics can reveal overconfidence patterns before expensive full runs.</p>
+    </div>
+    <div id="batch-summary" style="margin-bottom:0.75rem;color:var(--text-secondary);font-size:0.85rem;">
+      Batch results will appear here after you run the batch evaluation.
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="batch-table">
+        <thead>
+          <tr>
+            <th>Idx</th>
+            <th>GT</th>
+            <th>Pred</th>
+            <th>Confidence</th>
+            <th>Correct</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="5">No batch results yet.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-num">5. Full thesis evaluation</div>
+  <div class="card">
+    <p>Run full metrics pipeline (performance, calibration, uncertainty quality, AURC), with optional temperature scaling on validation.</p>
+    <div class="info-box">
+      <ul>
+        <li><strong>Predictive performance</strong>: ROC-AUC, PR-AUC, sensitivity/specificity, confusion matrix-derived metrics.</li>
+        <li><strong>Calibration</strong>: ECE, NLL, Brier, reliability diagram (+ optional temperature scaling).</li>
+        <li><strong>Uncertainty quality</strong>: error-detection AUROC/AUPRC plus per-prediction confidence diagnostics (overconfidence gap and high-confidence error rates).</li>
+        <li><strong>Selective prediction</strong>: risk-coverage, AURC, and target-risk deferral thresholds.</li>
+        <li><strong>Validation-fitted deferral policy</strong>: optional threshold fitting on validation, then transfer to evaluation split (in line with low-confidence deferral ideas in Dolezal et al., 2022).</li>
+      </ul>
+    </div>
+    <div class="form-row" style="flex-wrap:wrap;gap:1rem;margin-bottom:0.75rem;">
+      <div class="form-group">
+        <label for="full-max-samples">Max samples</label>
+        <input type="number" id="full-max-samples" value="512" min="1" max="50000" step="1" style="width:7rem;">
+      </div>
+      <div class="form-group">
+        <label for="full-batch-size">Batch size</label>
+        <input type="number" id="full-batch-size" value="64" min="1" max="1024" step="1" style="width:6rem;">
+      </div>
+      <div class="form-group">
+        <label for="full-fit-temp">Temperature scaling</label>
+        <select id="full-fit-temp">
+          <option value="0" selected>No</option>
+          <option value="1">Yes (fit on validation)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="full-fit-deferral">Val-fitted deferral thresholds</label>
+        <select id="full-fit-deferral">
+          <option value="1" selected>Yes (recommended)</option>
+          <option value="0">No</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="btn-full-eval">Run full evaluation</button>
+    <button class="btn" id="btn-refresh-results" style="margin-left:0.5rem;">Refresh saved JSON list</button>
+    <button class="btn" id="btn-download-loaded" style="margin-left:0.5rem;">Download loaded JSON</button>
+    <span class="status-badge" id="eval-last-badge" style="margin-left:0.5rem;">No result loaded</span>
+    <div id="full-eval-summary" style="margin-top:0.75rem;color:var(--text-secondary);font-size:0.85rem;">
+      Full evaluation results will appear here.
+    </div>
+    <div class="form-row" style="flex-wrap:wrap;gap:0.7rem;margin-top:0.6rem;">
+      <div class="form-group">
+        <label for="saved-result-select">Saved result JSON</label>
+        <select id="saved-result-select" style="min-width:24rem;">
+          <option value="">No saved result selected</option>
+        </select>
+      </div>
+      <button class="btn" id="btn-load-result">Load selected result</button>
+    </div>
+    <pre id="full-eval-calib" style="margin-top:0.75rem;white-space:pre-wrap;background:var(--bg-subtle);padding:0.75rem;border:1px solid var(--border);border-radius:6px;">No full evaluation run yet.</pre>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-num">6. Shift / OOD evaluation</div>
+  <div class="card">
+    <p>Run synthetic shift robustness and ID-vs-shift OOD detection using uncertainty scores.</p>
+    <div class="info-box">
+      <ul>
+        <li><strong>Why this is needed</strong>: medical deployment failures often happen under domain shift (blur, stain/color changes, compression artifacts, noise).</li>
+        <li><strong>Outputs</strong>: per-condition discrimination/calibration metrics and OOD detection (AUROC/AUPRC), plus near-OOD vs far-OOD grouped summary and method-wise comparison context from pathology shift literature.</li>
+      </ul>
+    </div>
+    <div class="form-row" style="flex-wrap:wrap;gap:1rem;margin-bottom:0.75rem;">
+      <div class="form-group">
+        <label for="shift-max-samples">Max samples</label>
+        <input type="number" id="shift-max-samples" value="256" min="1" max="50000" step="1" style="width:7rem;">
+      </div>
+      <div class="form-group">
+        <label for="shift-batch-size">Batch size</label>
+        <input type="number" id="shift-batch-size" value="64" min="1" max="1024" step="1" style="width:6rem;">
+      </div>
+      <div class="form-group">
+        <label for="shift-severities">Severities</label>
+        <input type="text" id="shift-severities" value="1,3,5" style="width:8rem;">
+      </div>
+      <div class="form-group">
+        <label for="shift-method">Method</label>
+        <select id="shift-method">
+          <option value="mc_dropout" selected>MC Dropout</option>
+          <option value="confidence">Confidence baseline</option>
+          <option value="deep_ensemble">Deep Ensemble</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="btn-shift-eval">Run shift/OOD evaluation</button>
+    <div id="shift-eval-summary" style="margin-top:0.75rem;color:var(--text-secondary);font-size:0.85rem;">
+      Shift/OOD results will appear here.
+    </div>
+    <div class="table-wrap" style="margin-top:0.75rem;">
+      <table class="data-table" id="shift-table">
+        <thead>
+          <tr>
+            <th>Condition</th>
+            <th>Accuracy</th>
+            <th><span class="tip" title="Expected Calibration Error: lower is better calibration.">ECE</span></th>
+            <th><span class="tip" title="Negative Log-Likelihood: proper scoring rule; lower is better.">NLL</span></th>
+            <th><span class="tip" title="Brier score: proper scoring rule for probabilities; lower is better.">Brier</span></th>
+            <th><span class="tip" title="Area under ROC for ID vs OOD detection using uncertainty scores.">OOD AUROC</span></th>
+            <th><span class="tip" title="Area under PR curve for ID vs OOD detection; useful with imbalance.">OOD AUPRC</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="7">No shift/OOD results yet.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-num">6.5 Full evaluation visualizations</div>
+  <div class="card">
+    <p>Charts from the currently loaded full-evaluation JSON.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1rem;">
+      <div>
+        <div class="metric-label">Confusion matrix</div>
+        <canvas id="viz-confusion" width="360" height="280" style="width:100%;border:1px solid var(--border);border-radius:6px;"></canvas>
+      </div>
+      <div>
+        <div class="metric-label">Reliability diagram</div>
+        <canvas id="viz-reliability" width="360" height="280" style="width:100%;border:1px solid var(--border);border-radius:6px;"></canvas>
+      </div>
+      <div>
+        <div class="metric-label">Error-detection ROC</div>
+        <canvas id="viz-err-roc" width="360" height="280" style="width:100%;border:1px solid var(--border);border-radius:6px;"></canvas>
+      </div>
+      <div>
+        <div class="metric-label">Error-detection PR</div>
+        <canvas id="viz-err-pr" width="360" height="280" style="width:100%;border:1px solid var(--border);border-radius:6px;"></canvas>
+      </div>
+      <div style="grid-column:1 / -1;">
+        <div class="metric-label">Risk-coverage curve</div>
+        <canvas id="viz-risk-coverage" width="740" height="320" style="width:100%;border:1px solid var(--border);border-radius:6px;"></canvas>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-num">7. Run all thesis evaluations</div>
+  <div class="card">
+    <p>Run complete bundle: full pipeline (confidence + MC Dropout) and shift/OOD evaluation, then export one combined summary.</p>
+    <div class="info-box">
+      <p><strong>Best for reporting</strong>: produces one thesis-ready combined JSON (`thesis_bundle_summary.json`) for tables/figures.</p>
+    </div>
+    <div class="form-row" style="flex-wrap:wrap;gap:1rem;margin-bottom:0.75rem;">
+      <div class="form-group">
+        <label for="all-max-samples">Max samples</label>
+        <input type="number" id="all-max-samples" value="256" min="1" max="50000" step="1" style="width:7rem;">
+      </div>
+      <div class="form-group">
+        <label for="all-batch-size">Batch size</label>
+        <input type="number" id="all-batch-size" value="64" min="1" max="1024" step="1" style="width:6rem;">
+      </div>
+      <div class="form-group">
+        <label for="all-mc-samples">MC samples</label>
+        <input type="number" id="all-mc-samples" value="30" min="2" max="100" step="1" style="width:6rem;">
+      </div>
+      <div class="form-group">
+        <label for="all-fit-temp">Temperature scaling</label>
+        <select id="all-fit-temp">
+          <option value="0" selected>No</option>
+          <option value="1">Yes</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="all-fit-deferral">Val-fitted deferral thresholds</label>
+        <select id="all-fit-deferral">
+          <option value="1" selected>Yes</option>
+          <option value="0">No</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="all-shift-sev">Shift severities</label>
+        <input type="text" id="all-shift-sev" value="1,3,5" style="width:8rem;">
+      </div>
+      <div class="form-group">
+        <label for="all-ensemble-size">Ensemble size</label>
+        <input type="number" id="all-ensemble-size" value="3" min="1" max="10" step="1" style="width:6rem;">
+      </div>
+      <div class="form-group">
+        <label for="all-use-deep-ens">Include deep ensemble</label>
+        <select id="all-use-deep-ens">
+          <option value="1" selected>Yes</option>
+          <option value="0">No</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="btn-all-eval">Run all evaluations</button>
+    <div id="all-eval-summary" style="margin-top:0.75rem;color:var(--text-secondary);font-size:0.85rem;">
+      Combined thesis summary will appear here.
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-num">8. Methods and sources</div>
+  <div class="card">
+    <p>References used by this evaluation tab and why each is included.</p>
+    <ul class="refs-list">
+      <li><a href="https://proceedings.mlr.press/v70/guo17a/guo17a.pdf" target="_blank" rel="noopener noreferrer">Temperature Scaling (Guo et al., 2017)</a> — standard post-hoc calibration baseline.</li>
+      <li><a href="https://arxiv.org/abs/1506.02142" target="_blank" rel="noopener noreferrer">MC Dropout (Gal &amp; Ghahramani, 2016)</a> — stochastic uncertainty approximation.</li>
+      <li><a href="https://arxiv.org/abs/1612.01474" target="_blank" rel="noopener noreferrer">Deep Ensembles (Lakshminarayanan et al., 2017)</a> — strong uncertainty baseline.</li>
+      <li><a href="https://torch-uncertainty.github.io/generated/torch_uncertainty.metrics.classification.AURC.html" target="_blank" rel="noopener noreferrer">AURC (Torch-Uncertainty)</a> — selective prediction safety metric.</li>
+      <li><a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_auc_score.html" target="_blank" rel="noopener noreferrer">AUROC (scikit-learn)</a> — discrimination and OOD/error detection ranking metric.</li>
+      <li><a href="https://en.wikipedia.org/wiki/Brier_score" target="_blank" rel="noopener noreferrer">Brier Score</a> — proper scoring rule for probabilistic predictions.</li>
+      <li><a href="https://torch-uncertainty.github.io/" target="_blank" rel="noopener noreferrer">Torch-Uncertainty</a> — metric reference framework used for uncertainty evaluation context.</li>
+      <li><a href="https://doi.org/10.1007/978-3-030-59710-8_80" target="_blank" rel="noopener noreferrer">Dataset shift in digital pathology (Thagaard et al., 2020)</a> — motivation for robustness under real shifts.</li>
+      <li><a href="https://doi.org/10.1016/j.media.2022.102655" target="_blank" rel="noopener noreferrer">OOD in digital pathology (Linmans et al., 2022)</a> — motivation for pathology-specific OOD analysis.</li>
+    </ul>
+    <h3 style="margin-top:1rem;">Additional related papers (from current literature review)</h3>
+    <ul class="refs-list">
+      <li><a href="https://doi.org/10.1109/ACCESS.2025.3622201" target="_blank" rel="noopener noreferrer">Bhattacharyya et al. (2025)</a> — aleatoric/epistemic uncertainty for tumor cellularity regression.</li>
+      <li><a href="https://doi.org/10.1200/JCO.2022.40.16_suppl.8549" target="_blank" rel="noopener noreferrer">Dolezal et al. (2022)</a> — dropout-based uncertainty thresholding to defer low-confidence predictions.</li>
+      <li><a href="https://doi.org/10.1109/WACV61041.2025.00068" target="_blank" rel="noopener noreferrer">Park et al. (2025, UDLS)</a> — uncertainty-guided label smoothing for MIL calibration.</li>
+      <li><a href="https://doi.org/10.1038/s41746-025-01580-8" target="_blank" rel="noopener noreferrer">Park et al. (2025, MSI-SEER)</a> — deep Gaussian process uncertainty in weakly supervised WSI setting.</li>
+      <li><a href="https://doi.org/10.48550/arXiv.2603.01750" target="_blank" rel="noopener noreferrer">Jordahn et al. (2026)</a> — practical heteroskedastic regression baseline.</li>
+      <li><a href="https://doi.org/10.48550/arXiv.2511.11486" target="_blank" rel="noopener noreferrer">Kinakh et al. (2025)</a> — Bayesian multimodal posterior sampling for histopathology segmentation.</li>
+    </ul>
+    <p style="margin-top:0.6rem;color:var(--text-secondary);font-size:0.85rem;">
+      These papers are cited as related work. Some methods are not yet implemented in this repository's current PCAM pipeline.
+    </p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-num">9. Metric glossary (quick interpretation)</div>
+  <div class="card">
+    <ul class="refs-list">
+      <li><strong>ROC-AUC / PR-AUC</strong>: discrimination/ranking metrics; useful but insufficient alone for per-prediction confidence validity.</li>
+      <li><strong>ECE</strong>: probability calibration error. Lower is better.</li>
+      <li><strong>NLL / Brier</strong>: proper scoring rules for probabilistic predictions. Lower is better.</li>
+      <li><strong>AURC</strong>: selective prediction risk-coverage area. Lower is better.</li>
+      <li><strong>OOD AUROC / AUPRC</strong>: ability to separate in-distribution and shifted samples via uncertainty. Higher is better.</li>
+    </ul>
+  </div>
+</section>
+
+<script>
+var currentSplit = null, currentIdx = null;
+var lastLoadedResult = null;
+var lastLoadedName = '';
+
+function clearCanvas(id, text) {
+  var c = document.getElementById(id);
+  if (!c) return;
+  var ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+  ctx.fillStyle = '#666';
+  ctx.font = '12px sans-serif';
+  ctx.fillText(text || 'No data', 12, 20);
+}
+
+function drawAxes(ctx, w, h, pad, xLabel, yLabel) {
+  ctx.strokeStyle = '#999';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad, h - pad);
+  ctx.lineTo(w - pad, h - pad);
+  ctx.moveTo(pad, h - pad);
+  ctx.lineTo(pad, pad);
+  ctx.stroke();
+  ctx.fillStyle = '#666';
+  ctx.font = '11px sans-serif';
+  if (xLabel) ctx.fillText(xLabel, w - pad - 40, h - 8);
+  if (yLabel) ctx.fillText(yLabel, 6, pad - 6);
+}
+
+function drawLineChart(canvasId, points, xKey, yKey, xLabel, yLabel, color, diagonal) {
+  var c = document.getElementById(canvasId);
+  if (!c) return;
+  var ctx = c.getContext('2d');
+  var w = c.width, h = c.height, pad = 30;
+  ctx.clearRect(0, 0, w, h);
+  if (!points || !points.length) {
+    clearCanvas(canvasId, 'No curve data');
+    return;
+  }
+  drawAxes(ctx, w, h, pad, xLabel, yLabel);
+  if (diagonal) {
+    ctx.strokeStyle = '#bbb';
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(pad, h - pad);
+    ctx.lineTo(w - pad, pad);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  ctx.strokeStyle = color || '#1f77b4';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (var i = 0; i < points.length; i++) {
+    var px = Number(points[i][xKey]);
+    var py = Number(points[i][yKey]);
+    if (!isFinite(px) || !isFinite(py)) continue;
+    var x = pad + px * (w - 2 * pad);
+    var y = h - pad - py * (h - 2 * pad);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+}
+
+function drawConfusionMatrix(cm) {
+  var c = document.getElementById('viz-confusion');
+  if (!c) return;
+  var ctx = c.getContext('2d');
+  var w = c.width, h = c.height;
+  ctx.clearRect(0, 0, w, h);
+  if (!cm) { clearCanvas('viz-confusion', 'No confusion matrix'); return; }
+  var vals = [cm.tn || 0, cm.fp || 0, cm.fn || 0, cm.tp || 0];
+  var maxV = Math.max(1, vals[0], vals[1], vals[2], vals[3]);
+  var x0 = 70, y0 = 40, cell = 90;
+  var labels = ['TN', 'FP', 'FN', 'TP'];
+  for (var i = 0; i < 2; i++) {
+    for (var j = 0; j < 2; j++) {
+      var idx = i * 2 + j;
+      var v = vals[idx];
+      var a = 0.15 + 0.75 * (v / maxV);
+      ctx.fillStyle = 'rgba(31,119,180,' + a.toFixed(3) + ')';
+      ctx.fillRect(x0 + j * cell, y0 + i * cell, cell, cell);
+      ctx.strokeStyle = '#fff';
+      ctx.strokeRect(x0 + j * cell, y0 + i * cell, cell, cell);
+      ctx.fillStyle = '#111';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.fillText(labels[idx], x0 + j * cell + 8, y0 + i * cell + 20);
+      ctx.font = 'bold 18px sans-serif';
+      ctx.fillText(String(v), x0 + j * cell + 8, y0 + i * cell + 52);
+    }
+  }
+  ctx.fillStyle = '#444';
+  ctx.font = '12px sans-serif';
+  ctx.fillText('Predicted', x0 + 50, y0 - 12);
+  ctx.fillText('True', 18, y0 + 55);
+}
+
+function drawReliability(relBins) {
+  var pts = [];
+  (relBins || []).forEach(function(b) {
+    if (b && b.count > 0 && b.conf != null && b.acc != null) {
+      pts.push({x: Number(b.conf), y: Number(b.acc)});
+    }
+  });
+  drawLineChart('viz-reliability', pts.map(function(p){return {x:p.x,y:p.y};}), 'x', 'y', 'Confidence', 'Accuracy', '#d62728', true);
+}
+
+function drawRiskCoverage(rc) {
+  drawLineChart('viz-risk-coverage', rc || [], 'coverage', 'risk', 'Coverage', 'Risk', '#2ca02c', false);
+}
+
+function drawErrorCurves(uq) {
+  var entropy = (uq || {}).error_detection_entropy || {};
+  var roc = entropy.roc_curve || [];
+  var pr = entropy.pr_curve || [];
+  drawLineChart('viz-err-roc', roc, 'fpr', 'tpr', 'FPR', 'TPR', '#9467bd', true);
+  drawLineChart('viz-err-pr', pr, 'recall', 'precision', 'Recall', 'Precision', '#8c564b', false);
+}
+
+function renderVisualizationsFromResult(res) {
+  var perf = (res || {}).predictive_performance || {};
+  var cal = (res || {}).calibration || {};
+  var uq = (res || {}).uncertainty_quality || {};
+  var sel = (res || {}).selective_prediction || {};
+  drawConfusionMatrix(perf.confusion_matrix || null);
+  drawReliability(cal.reliability_bins || []);
+  drawErrorCurves(uq);
+  drawRiskCoverage(sel.risk_coverage_curve || []);
+}
+
+(function() {
+  var sel = document.getElementById('run-select');
+  fetch('/api/train/runs').then(function(r) { return r.json(); }).then(function(d) {
+    var runs = d.runs || [];
+    if (!runs.length) {
+      // Keep the default option but make it explicit.
+      if (sel && sel.options && sel.options.length) {
+        sel.options[0].textContent = 'Latest run not found (using pretrained weights)';
+      }
+      return;
+    }
+    runs.forEach(function(r) {
+      var opt = document.createElement('option');
+      opt.value = r.run_id || '';
+      opt.textContent = (r.run_id || '—') + (r.best_val_acc != null ? ' (val ' + (r.best_val_acc * 100).toFixed(1) + '%)' : '');
+      sel.appendChild(opt);
+    });
+  }).catch(function() {});
+})();
+
+function getSelectedSplit() {
+  var el = document.getElementById('eval-split');
+  return el ? el.value : 'test';
+}
+
+document.getElementById('btn-random').onclick = function() {
+  document.getElementById('card-sample').style.display = 'none';
+  document.getElementById('pred-result').style.display = 'none';
+  document.getElementById('btn-reveal').style.display = 'none';
+  document.getElementById('truth-result').style.display = 'none';
+  var split = getSelectedSplit();
+  fetch('/api/evaluate/random?split=' + encodeURIComponent(split))
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.error) { alert(d.error); return; }
+      currentSplit = d.split;
+      currentIdx = d.idx;
+      document.getElementById('sample-idx').textContent = d.idx + ' (of ' + d.size + ')';
+      document.getElementById('sample-img').src = '/api/dataset/' + d.split + '/sample/' + d.idx;
+      document.getElementById('card-sample').style.display = 'block';
+      document.getElementById('btn-predict').style.display = 'block';
+    })
+    .catch(function(e) { alert('Error: ' + e.message); });
+};
+
+document.getElementById('btn-batch').onclick = function() {
+  var split = getSelectedSplit();
+  var nEl = document.getElementById('eval-n');
+  var n = parseInt(nEl ? nEl.value : '10', 10);
+  if (isNaN(n) || n < 1) n = 10;
+  n = Math.min(50, Math.max(1, n));
+
+  var runId = document.getElementById('run-select').value;
+  var method = document.getElementById('unc-method').value || 'mc_dropout';
+  var mc = parseInt(document.getElementById('mc-samples').value || '30', 10);
+  if (isNaN(mc) || mc < 2) mc = 30;
+  mc = Math.min(100, Math.max(2, mc));
+  var url = '/api/evaluate/batch?split=' + encodeURIComponent(split) + '&n=' + encodeURIComponent(n) + '&method=' + encodeURIComponent(method) + '&mc_samples=' + encodeURIComponent(mc);
+  if (runId) url += '&run_id=' + encodeURIComponent(runId);
+
+  var btn = document.getElementById('btn-batch');
+  if (btn) btn.disabled = true;
+
+  var summary = document.getElementById('batch-summary');
+  if (summary) summary.textContent = 'Running batch evaluation…';
+
+  var tbody = document.querySelector('#batch-table tbody');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="5">Processing…</td></tr>';
+
+  fetch(url)
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.error) { alert(d.error); return; }
+      var s = d.summary || {};
+      if (summary) {
+        summary.textContent = 'Method: ' + d.method + ', Accuracy: ' + (s.accuracy * 100).toFixed(1) + '% (n=' + d.n + '), mean confidence: ' + ((s.mean_confidence || 0) * 100).toFixed(1) + '%, ECE: ' + ((s.ece || 0) * 100).toFixed(2) + '%';
+      }
+      if (tbody) {
+        tbody.innerHTML = (d.results || []).map(function(r) {
+          var gt = r.gt === 1 ? 'Metastasis' : 'Normal';
+          var pred = r.pred === 1 ? 'Metastasis' : 'Normal';
+          var correct = r.correct ? '✓' : '✗';
+          var color = r.correct ? 'var(--success)' : 'var(--danger)';
+          return '<tr>' +
+            '<td class="mono">' + r.idx + '</td>' +
+            '<td>' + gt + '</td>' +
+            '<td>' + pred + '</td>' +
+            '<td>' + (r.confidence * 100).toFixed(1) + '%</td>' +
+            '<td style="color:' + color + ';font-weight:600;">' + correct + '</td>' +
+          '</tr>';
+        }).join('');
+      }
+    })
+    .catch(function(e) {
+      if (summary) summary.textContent = 'Batch evaluation failed: ' + e.message;
+      if (tbody) tbody.innerHTML = '<tr><td colspan="5">An error occurred.</td></tr>';
+    })
+    .finally(function() {
+      if (btn) btn.disabled = false;
+    });
+};
+
+document.getElementById('btn-predict').onclick = function() {
+  if (currentSplit == null || currentIdx == null) return;
+  this.disabled = true;
+  var runId = document.getElementById('run-select').value;
+  var method = document.getElementById('unc-method').value || 'mc_dropout';
+  var mc = parseInt(document.getElementById('mc-samples').value || '30', 10);
+  if (isNaN(mc) || mc < 2) mc = 30;
+  mc = Math.min(100, Math.max(2, mc));
+  var url = '/api/evaluate/predict?split=' + currentSplit + '&idx=' + currentIdx + '&method=' + encodeURIComponent(method) + '&mc_samples=' + encodeURIComponent(mc);
+  if (runId) url += '&run_id=' + encodeURIComponent(runId);
+  fetch(url)
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      document.getElementById('btn-predict').disabled = false;
+      if (d.error) { alert(d.error); return; }
+      document.getElementById('pred-label').textContent = d.label_name;
+      var uncTxt = 'confidence ' + (d.prob * 100).toFixed(1) + '%, uncertainty ' + ((d.uncertainty || 0) * 100).toFixed(1) + '%, entropy ' + (d.entropy || 0).toFixed(3);
+      if (d.method === 'mc_dropout' && d.uncertainty_var != null) uncTxt += ', var ' + d.uncertainty_var.toFixed(4);
+      document.getElementById('pred-conf').textContent = '(' + uncTxt + ')';
+      document.getElementById('pred-result').style.display = 'block';
+      document.getElementById('btn-reveal').style.display = 'block';
+    })
+    .catch(function(e) {
+      document.getElementById('btn-predict').disabled = false;
+      alert('Error: ' + e.message);
+    });
+};
+
+document.getElementById('btn-reveal').onclick = function() {
+  if (currentSplit == null || currentIdx == null) return;
+  fetch('/api/dataset/' + currentSplit + '/label/' + currentIdx)
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var gt = d.label === 1 ? 'Metastasis' : 'Normal';
+      document.getElementById('truth-label').textContent = gt;
+      document.getElementById('truth-result').style.display = 'block';
+      var predEl = document.getElementById('pred-label');
+      var predText = predEl ? predEl.textContent : '';
+      var correct = (predText === gt);
+      document.getElementById('correct-msg').textContent = correct ? 'Prediction matches the ground truth.' : 'Prediction does not match the ground truth.';
+      document.getElementById('correct-msg').style.color = correct ? 'var(--success)' : 'var(--danger)';
+      document.getElementById('btn-reveal').style.display = 'none';
+    })
+    .catch(function(e) { alert('Error: ' + e.message); });
+};
+
+document.getElementById('btn-full-eval').onclick = function() {
+  var btn = this;
+  var split = getSelectedSplit();
+  var runId = document.getElementById('run-select').value;
+  var method = document.getElementById('unc-method').value || 'mc_dropout';
+  var mc = parseInt(document.getElementById('mc-samples').value || '30', 10);
+  if (isNaN(mc) || mc < 2) mc = 30;
+  mc = Math.min(100, Math.max(2, mc));
+  var maxSamples = parseInt(document.getElementById('full-max-samples').value || '512', 10);
+  if (isNaN(maxSamples) || maxSamples < 1) maxSamples = 512;
+  var batchSize = parseInt(document.getElementById('full-batch-size').value || '64', 10);
+  if (isNaN(batchSize) || batchSize < 1) batchSize = 64;
+  var fitTemp = (document.getElementById('full-fit-temp').value === '1');
+  var fitDeferral = (document.getElementById('full-fit-deferral').value === '1');
+
+  var summary = document.getElementById('full-eval-summary');
+  var calib = document.getElementById('full-eval-calib');
+  if (summary) summary.textContent = 'Running full evaluation pipeline...';
+  if (calib) calib.textContent = 'Processing...';
+  btn.disabled = true;
+
+  var payload = {
+    split: split,
+    method: method,
+    mc_samples: mc,
+    max_samples: maxSamples,
+    batch_size: batchSize,
+    fit_temperature_on_val: fitTemp,
+    fit_deferral_on_val: fitDeferral
+  };
+  if (runId) payload.run_id = runId;
+
+  fetch('/api/evaluate/full', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload)
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d.ok) {
+        if (summary) summary.textContent = 'Full evaluation failed: ' + (d.error || 'unknown error');
+        if (calib) calib.textContent = d.log || 'No log output.';
+        return;
+      }
+      var res = d.result || {};
+      var perf = res.predictive_performance || {};
+      var cal = res.calibration || {};
+      if (summary) {
+        var uq = res.uncertainty_quality || {};
+        var diag = uq.prediction_confidence_diagnostics || {};
+        var overGap = (diag.overconfidence_gap != null) ? Number(diag.overconfidence_gap).toFixed(4) : 'n/a';
+        var hcErr95 = (diag.high_confidence_error_rate_at_0_95 != null) ? Number(diag.high_confidence_error_rate_at_0_95).toFixed(4) : 'n/a';
+        summary.textContent =
+          'Saved: ' + (d.output_path || 'evaluation json') +
+          ' | Accuracy: ' + (((perf.accuracy || 0) * 100).toFixed(2)) + '%' +
+          ', ROC-AUC: ' + (perf.roc_auc != null ? perf.roc_auc.toFixed(4) : 'n/a') +
+          ', PR-AUC: ' + (perf.pr_auc != null ? perf.pr_auc.toFixed(4) : 'n/a') +
+          ', ECE: ' + (((cal.ece || 0) * 100).toFixed(2)) + '%' +
+          ', AURC: ' + ((res.selective_prediction || {}).aurc != null ? (res.selective_prediction.aurc).toFixed(4) : 'n/a') +
+          ', overconfidence gap: ' + overGap +
+          ', high-conf(>=0.95) error: ' + hcErr95;
+      }
+      var report = res.calibration_report || {};
+      if (report.temperature_scaling) {
+        calib.textContent =
+          'Temperature scaling fitted on validation\n' +
+          'T = ' + report.temperature_scaling.temperature.toFixed(6) + '\n' +
+          'ECE before: ' + ((report.uncalibrated.ece || 0) * 100).toFixed(3) + '%\n' +
+          'ECE after : ' + ((report.temperature_scaling.calibrated.ece || 0) * 100).toFixed(3) + '%\n' +
+          'NLL before: ' + (report.uncalibrated.nll || 0).toFixed(6) + '\n' +
+          'NLL after : ' + (report.temperature_scaling.calibrated.nll || 0).toFixed(6) + '\n' +
+          'Brier before: ' + (report.uncalibrated.brier || 0).toFixed(6) + '\n' +
+          'Brier after : ' + (report.temperature_scaling.calibrated.brier || 0).toFixed(6);
+      } else {
+        calib.textContent =
+          'Uncalibrated only\n' +
+          'ECE: ' + (((cal.ece || 0) * 100).toFixed(3)) + '%\n' +
+          'NLL: ' + ((cal.nll || 0).toFixed(6)) + '\n' +
+          'Brier: ' + ((cal.brier || 0).toFixed(6));
+      }
+      renderVisualizationsFromResult(res);
+    })
+    .catch(function(e) {
+      if (summary) summary.textContent = 'Full evaluation failed: ' + e.message;
+      if (calib) calib.textContent = 'No results.';
+    })
+    .finally(function() {
+      btn.disabled = false;
+    });
+};
+
+function renderFullEvalResult(result, sourcePath) {
+  var summary = document.getElementById('full-eval-summary');
+  var calib = document.getElementById('full-eval-calib');
+  var res = result || {};
+  var perf = res.predictive_performance || {};
+  var cal = res.calibration || {};
+  if (summary) {
+    var uq = res.uncertainty_quality || {};
+    var diag = uq.prediction_confidence_diagnostics || {};
+    var overGap = (diag.overconfidence_gap != null) ? Number(diag.overconfidence_gap).toFixed(4) : 'n/a';
+    var hcErr95 = (diag.high_confidence_error_rate_at_0_95 != null) ? Number(diag.high_confidence_error_rate_at_0_95).toFixed(4) : 'n/a';
+    summary.textContent =
+      'Loaded: ' + (sourcePath || 'evaluation json') +
+      ' | Accuracy: ' + (((perf.accuracy || 0) * 100).toFixed(2)) + '%' +
+      ', ROC-AUC: ' + (perf.roc_auc != null ? perf.roc_auc.toFixed(4) : 'n/a') +
+      ', PR-AUC: ' + (perf.pr_auc != null ? perf.pr_auc.toFixed(4) : 'n/a') +
+      ', ECE: ' + (((cal.ece || 0) * 100).toFixed(2)) + '%' +
+      ', AURC: ' + ((res.selective_prediction || {}).aurc != null ? (res.selective_prediction.aurc).toFixed(4) : 'n/a') +
+      ', overconfidence gap: ' + overGap +
+      ', high-conf(>=0.95) error: ' + hcErr95;
+  }
+  var report = res.calibration_report || {};
+  lastLoadedResult = res;
+  lastLoadedName = sourcePath || '';
+  var badge = document.getElementById('eval-last-badge');
+  if (badge) badge.textContent = 'Loaded: ' + (sourcePath || 'result');
+  if (report.temperature_scaling) {
+    calib.textContent =
+      'Temperature scaling fitted on validation\n' +
+      'T = ' + report.temperature_scaling.temperature.toFixed(6) + '\n' +
+      'ECE before: ' + ((report.uncalibrated.ece || 0) * 100).toFixed(3) + '%\n' +
+      'ECE after : ' + ((report.temperature_scaling.calibrated.ece || 0) * 100).toFixed(3) + '%\n' +
+      'NLL before: ' + (report.uncalibrated.nll || 0).toFixed(6) + '\n' +
+      'NLL after : ' + (report.temperature_scaling.calibrated.nll || 0).toFixed(6) + '\n' +
+      'Brier before: ' + (report.uncalibrated.brier || 0).toFixed(6) + '\n' +
+      'Brier after : ' + (report.temperature_scaling.calibrated.brier || 0).toFixed(6);
+  } else {
+    calib.textContent =
+      'Uncalibrated only\n' +
+      'ECE: ' + (((cal.ece || 0) * 100).toFixed(3)) + '%\n' +
+      'NLL: ' + ((cal.nll || 0).toFixed(6)) + '\n' +
+      'Brier: ' + ((cal.brier || 0).toFixed(6));
+  }
+  renderVisualizationsFromResult(res);
+}
+
+document.getElementById('btn-shift-eval').onclick = function() {
+  var btn = this;
+  var split = getSelectedSplit();
+  var runId = document.getElementById('run-select').value;
+  var maxSamples = parseInt(document.getElementById('shift-max-samples').value || '256', 10);
+  if (isNaN(maxSamples) || maxSamples < 1) maxSamples = 256;
+  var batchSize = parseInt(document.getElementById('shift-batch-size').value || '64', 10);
+  if (isNaN(batchSize) || batchSize < 1) batchSize = 64;
+  var severities = (document.getElementById('shift-severities').value || '1,3,5').trim();
+  var shiftMethod = document.getElementById('shift-method').value || 'mc_dropout';
+  var mcForShift = parseInt(document.getElementById('mc-samples').value || '30', 10);
+  if (isNaN(mcForShift) || mcForShift < 2) mcForShift = 30;
+  var ensForShift = parseInt(document.getElementById('all-ensemble-size').value || '3', 10);
+  if (isNaN(ensForShift) || ensForShift < 1) ensForShift = 3;
+
+  var summary = document.getElementById('shift-eval-summary');
+  var tbody = document.querySelector('#shift-table tbody');
+  if (summary) summary.textContent = 'Running shift/OOD evaluation...';
+  if (tbody) tbody.innerHTML = '<tr><td colspan="7">Processing...</td></tr>';
+  btn.disabled = true;
+
+  var payload = {
+    split: split,
+    max_samples: maxSamples,
+    batch_size: batchSize,
+    severities: severities,
+    shifts: 'id,blur,jpeg,color,noise',
+    method: shiftMethod,
+    mc_samples: mcForShift,
+    ensemble_size: ensForShift
+  };
+  if (runId) payload.run_id = runId;
+
+  fetch('/api/evaluate/shift', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload)
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d.ok) {
+        if (summary) summary.textContent = 'Shift/OOD evaluation failed: ' + (d.error || 'unknown error');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="7">Failed.</td></tr>';
+        return;
+      }
+      var res = d.result || {};
+      var rows = res.results || {};
+      var keys = Object.keys(rows).sort();
+      if (summary) summary.textContent = 'Saved: ' + (d.output_path || 'shift_ood json') + ' (' + keys.length + ' conditions, method: ' + ((res.config || {}).method || shiftMethod) + ')';
+      var grouped = res.grouped_summary || {};
+      if (summary && grouped.near_ood) {
+        var near = grouped.near_ood || {};
+        var far = grouped.far_ood || {};
+        function fmt4(x) { return x == null ? 'n/a' : Number(x).toFixed(4); }
+        summary.textContent +=
+          ' | near-OOD AUROC: ' + fmt4(near.mean_ood_auroc) +
+          ' (' + (near.n_conditions || 0) + ' cond)' +
+          ', far-OOD AUROC: ' + fmt4(far.mean_ood_auroc) +
+          ' (' + (far.n_conditions || 0) + ' cond)';
+      }
+      if (tbody) {
+        tbody.innerHTML = keys.map(function(k) {
+          var r = rows[k] || {};
+          function fmt(x, p) { return (x == null) ? 'n/a' : Number(x).toFixed(p); }
+          return '<tr>' +
+            '<td class="mono">' + k + '</td>' +
+            '<td>' + fmt((r.accuracy || 0) * 100, 2) + '%</td>' +
+            '<td>' + fmt((r.ece || 0) * 100, 2) + '%</td>' +
+            '<td>' + fmt(r.nll, 4) + '</td>' +
+            '<td>' + fmt(r.brier, 4) + '</td>' +
+            '<td>' + fmt(r.ood_detection_auroc, 4) + '</td>' +
+            '<td>' + fmt(r.ood_detection_auprc, 4) + '</td>' +
+          '</tr>';
+        }).join('');
+      }
+    })
+    .catch(function(e) {
+      if (summary) summary.textContent = 'Shift/OOD evaluation failed: ' + e.message;
+      if (tbody) tbody.innerHTML = '<tr><td colspan="7">Error.</td></tr>';
+    })
+    .finally(function() {
+      btn.disabled = false;
+    });
+};
+
+document.getElementById('btn-all-eval').onclick = function() {
+  var btn = this;
+  var split = getSelectedSplit();
+  var runId = document.getElementById('run-select').value;
+  var maxSamples = parseInt(document.getElementById('all-max-samples').value || '256', 10);
+  if (isNaN(maxSamples) || maxSamples < 1) maxSamples = 256;
+  var batchSize = parseInt(document.getElementById('all-batch-size').value || '64', 10);
+  if (isNaN(batchSize) || batchSize < 1) batchSize = 64;
+  var mcSamples = parseInt(document.getElementById('all-mc-samples').value || '30', 10);
+  if (isNaN(mcSamples) || mcSamples < 2) mcSamples = 30;
+  var fitTemp = (document.getElementById('all-fit-temp').value === '1');
+  var fitDeferral = (document.getElementById('all-fit-deferral').value === '1');
+  var shiftSev = (document.getElementById('all-shift-sev').value || '1,3,5').trim();
+  var ensembleSize = parseInt(document.getElementById('all-ensemble-size').value || '3', 10);
+  if (isNaN(ensembleSize) || ensembleSize < 1) ensembleSize = 3;
+  var includeDeep = (document.getElementById('all-use-deep-ens').value === '1');
+
+  var summary = document.getElementById('all-eval-summary');
+  if (summary) summary.textContent = 'Running full thesis bundle...';
+  btn.disabled = true;
+
+  var payload = {
+    split: split,
+    max_samples: maxSamples,
+    batch_size: batchSize,
+    mc_samples: mcSamples,
+    fit_temperature_on_val: fitTemp,
+    fit_deferral_on_val: fitDeferral,
+    shift_severities: shiftSev,
+    ensemble_size: ensembleSize,
+    include_deep_ensemble: includeDeep
+  };
+  if (runId) payload.run_id = runId;
+
+  fetch('/api/evaluate/all', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload)
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d.ok) {
+        if (summary) summary.textContent = 'Bundle failed: ' + (d.error || 'unknown error');
+        return;
+      }
+      var res = d.result || {};
+      var conf = (((res.pipeline || {}).confidence || {}).predictive_performance || {});
+      var mc = (((res.pipeline || {}).mc_dropout || {}).predictive_performance || {});
+      var de = (((res.pipeline || {}).deep_ensemble || {}).predictive_performance || {});
+      var shiftRows = Object.keys(res.shift_ood || {}).length;
+      if (summary) {
+        summary.textContent =
+          'Saved: ' + (d.output_path || 'evaluation/thesis_bundle_summary.json') +
+          ' | confidence acc: ' + (((conf.accuracy || 0) * 100).toFixed(2)) + '%' +
+          ', mc_dropout acc: ' + (((mc.accuracy || 0) * 100).toFixed(2)) + '%' +
+          (de.accuracy != null ? (', deep_ensemble acc: ' + ((de.accuracy * 100).toFixed(2)) + '%') : '') +
+          ', shift conditions: ' + shiftRows;
+      }
+    })
+    .catch(function(e) {
+      if (summary) summary.textContent = 'Bundle failed: ' + e.message;
+    })
+    .finally(function() {
+      btn.disabled = false;
+    });
+};
+
+function refreshSavedResultsList() {
+  var sel = document.getElementById('saved-result-select');
+  if (!sel) return;
+  fetch('/api/evaluate/results?action=list')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var files = (d && d.ok && d.files) ? d.files : [];
+      sel.innerHTML = '<option value=\"\">Select a saved JSON result</option>';
+      files.forEach(function(f) {
+        var opt = document.createElement('option');
+        opt.value = f.name;
+        var kb = (f.size_bytes || 0) / 1024.0;
+        opt.textContent = f.name + ' (' + kb.toFixed(1) + ' KB)';
+        sel.appendChild(opt);
+      });
+    })
+    .catch(function() {});
+}
+
+document.getElementById('btn-refresh-results').onclick = function() {
+  refreshSavedResultsList();
+};
+
+document.getElementById('btn-load-result').onclick = function() {
+  var sel = document.getElementById('saved-result-select');
+  var name = sel ? sel.value : '';
+  if (!name) return;
+  fetch('/api/evaluate/results?action=load&name=' + encodeURIComponent(name))
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d.ok) { alert(d.error || 'Failed to load result'); return; }
+      var res = d.result || {};
+      // Route by schema: full eval / shift eval / bundle.
+      if (res.predictive_performance && res.calibration) {
+        renderFullEvalResult(res, d.path || name);
+      } else if (res.results && res.grouped_summary) {
+        // shift schema -> render shift section quickly
+        var rows = res.results || {};
+        var keys = Object.keys(rows).sort();
+        var summary = document.getElementById('shift-eval-summary');
+        var tbody = document.querySelector('#shift-table tbody');
+        if (summary) summary.textContent = 'Loaded: ' + (d.path || name) + ' (' + keys.length + ' conditions)';
+        if (tbody) {
+          tbody.innerHTML = keys.map(function(k) {
+            var r = rows[k] || {};
+            function fmt(x, p) { return (x == null) ? 'n/a' : Number(x).toFixed(p); }
+            return '<tr>' +
+              '<td class=\"mono\">' + k + '</td>' +
+              '<td>' + fmt((r.accuracy || 0) * 100, 2) + '%</td>' +
+              '<td>' + fmt((r.ece || 0) * 100, 2) + '%</td>' +
+              '<td>' + fmt(r.nll, 4) + '</td>' +
+              '<td>' + fmt(r.brier, 4) + '</td>' +
+              '<td>' + fmt(r.ood_detection_auroc, 4) + '</td>' +
+              '<td>' + fmt(r.ood_detection_auprc, 4) + '</td>' +
+            '</tr>';
+          }).join('');
+        }
+      } else if (res.pipeline && res.shift_ood) {
+        var summary = document.getElementById('all-eval-summary');
+        var conf = (((res.pipeline || {}).confidence || {}).predictive_performance || {});
+        var mc = (((res.pipeline || {}).mc_dropout || {}).predictive_performance || {});
+        var de = (((res.pipeline || {}).deep_ensemble || {}).predictive_performance || {});
+        var shiftRows = Object.keys(res.shift_ood || {}).length;
+        if (summary) {
+          summary.textContent =
+            'Loaded: ' + (d.path || name) +
+            ' | confidence acc: ' + (((conf.accuracy || 0) * 100).toFixed(2)) + '%' +
+            ', mc_dropout acc: ' + (((mc.accuracy || 0) * 100).toFixed(2)) + '%' +
+            (de.accuracy != null ? (', deep_ensemble acc: ' + ((de.accuracy * 100).toFixed(2)) + '%') : '') +
+            ', shift conditions: ' + shiftRows;
+        }
+        lastLoadedResult = res;
+        lastLoadedName = d.path || name;
+        var badge = document.getElementById('eval-last-badge');
+        if (badge) badge.textContent = 'Loaded: ' + lastLoadedName;
+      } else {
+        alert('Unsupported JSON schema for UI preload.');
+      }
+    })
+    .catch(function(e) { alert('Load failed: ' + e.message); });
+};
+
+document.getElementById('btn-download-loaded').onclick = function() {
+  if (!lastLoadedResult) {
+    alert('No loaded result available to download yet.');
+    return;
+  }
+  var blob = new Blob([JSON.stringify(lastLoadedResult, null, 2)], {type: 'application/json'});
+  var a = document.createElement('a');
+  var name = lastLoadedName ? lastLoadedName.split('/').pop() : 'loaded_evaluation_result.json';
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function() {
+    URL.revokeObjectURL(a.href);
+    document.body.removeChild(a);
+  }, 0);
+};
+
+refreshSavedResultsList();
+clearCanvas('viz-confusion', 'Run or load full evaluation');
+clearCanvas('viz-reliability', 'Run or load full evaluation');
+clearCanvas('viz-err-roc', 'Run or load full evaluation');
+clearCanvas('viz-err-pr', 'Run or load full evaluation');
+clearCanvas('viz-risk-coverage', 'Run or load full evaluation');
+</script>
+{% endblock %}

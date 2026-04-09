@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Setup — Uncertainty in Digital Pathology{% endblock %}
+{% block content %}
+<h1>Setup</h1>
+<p class="page-subtitle">Configure data, models, and uncertainty methods. The top bar stays to four steps: <strong>Home → Setup → Run → Results</strong>.</p>
+
+<section class="section">
+  <div class="section-num">Uncertainty Lab</div>
+  <div class="card">
+    <p>Run the reproducible pipeline from the browser (YAML merged with <code class="mono">configs/uncertainty_lab_default.yaml</code>).</p>
+    <p style="margin-bottom:0;"><a href="{{ url_for('lab_page') }}" class="btn btn-primary">Open Uncertainty Lab</a></p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-num">Dataset</div>
+  <div class="card">
+    <p>Browse PCAM splits, filters, and sample patches.</p>
+    <p style="margin-bottom:0;"><a href="{{ url_for('dataset_page') }}" class="btn">Open dataset browser</a></p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-num">Project &amp; config</div>
+  <div class="card">
+    <p>README, default <code class="mono">configs/default.yaml</code>, and references.</p>
+    <p style="margin-bottom:0;"><a href="{{ url_for('project') }}" class="btn">Open project docs</a></p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="card">
+    <div class="info-box">
+      <p><strong>Optional desktop UI</strong>: Streamlit workflow (<code class="mono">streamlit run uncertainty_lab/streamlit_app.py</code>) uses the same four steps: Home, Setup, Run, Results.</p>
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Uncertainty Lab{% endblock %}
+{% block content %}
+<h1>Uncertainty Lab</h1>
+<p class="page-subtitle">Run the config-driven pipeline from the browser (same backend as <code class="mono">uncertainty-lab run</code>).</p>
+
+<section class="section">
+  <div class="section-num">1. Merge config & run</div>
+  <div class="card">
+    <p>YAML below is merged with <code class="mono">configs/uncertainty_lab_default.yaml</code>. Example: set <code class="mono">dataset.type</code> to <code class="mono">folder</code> or <code class="mono">csv</code>, choose <code class="mono">uncertainty.method</code>, optional <code class="mono">pipeline.mode: train</code>.</p>
+    <textarea id="lab-yaml" class="mono" style="width:100%;min-height:220px;font-size:0.85rem;padding:0.75rem;" spellcheck="false"># Example overrides
+dataset:
+  type: pcam
+  root: data/raw
+  eval_split: test
+  max_eval_samples: 500
+uncertainty:
+  method: confidence
+pipeline:
+  mode: evaluate
+</textarea>
+    <p style="margin-top:0.75rem;">
+      <button type="button" class="btn btn-primary" id="lab-run-btn">Run pipeline</button>
+      <span id="lab-status" style="margin-left:1rem;"></span>
+    </p>
+    <pre id="lab-result" class="mono" style="margin-top:1rem;max-height:320px;overflow:auto;background:var(--card-bg-alt, #f4f4f4);padding:0.75rem;border-radius:6px;font-size:0.8rem;"></pre>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-num">2. Recent runs</div>
+  <div class="card">
+    <p>Outputs live under <code class="mono">runs/</code> (metrics.json, config.yaml, plots/).</p>
+    <button type="button" class="btn" id="lab-refresh-runs">Refresh list</button>
+    <ul id="lab-runs" style="margin-top:0.75rem;"></ul>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-num">3. Streamlit UI</div>
+  <div class="card">
+    <p>For ZIP upload and richer widgets, run locally:</p>
+    <pre class="mono" style="padding:0.75rem;">streamlit run uncertainty_lab/streamlit_app.py</pre>
+  </div>
+</section>
+
+<script>
+(function () {
+  var btn = document.getElementById('lab-run-btn');
+  var yamlEl = document.getElementById('lab-yaml');
+  var status = document.getElementById('lab-status');
+  var result = document.getElementById('lab-result');
+  btn.addEventListener('click', function () {
+    status.textContent = 'Running…';
+    result.textContent = '';
+    fetch('{{ url_for("api_lab_run") }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config: yamlEl.value })
+    }).then(function (r) { return r.json(); }).then(function (data) {
+      status.textContent = data.ok ? 'Done' : 'Error';
+      result.textContent = JSON.stringify(data, null, 2);
+    }).catch(function (e) {
+      status.textContent = 'Error';
+      result.textContent = String(e);
+    });
+  });
+
+  function refreshRuns() {
+    var ul = document.getElementById('lab-runs');
+    ul.innerHTML = '';
+    fetch('{{ url_for("api_runs_list") }}').then(function (r) { return r.json(); }).then(function (data) {
+      if (!data.ok || !data.runs.length) {
+        ul.innerHTML = '<li>No runs yet.</li>';
+        return;
+      }
+      data.runs.forEach(function (x) {
+        var li = document.createElement('li');
+        li.textContent = x.path + (x.has_metrics ? ' ✓ metrics' : '') + (x.has_config ? ' ✓ config' : '');
+        ul.appendChild(li);
+      });
+    });
+  }
+  document.getElementById('lab-refresh-runs').addEventListener('click', refreshRuns);
+  refreshRuns();
+})();
+</script>
+{% endblock %}

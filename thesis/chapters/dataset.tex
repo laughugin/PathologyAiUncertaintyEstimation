@@ -1,0 +1,12 @@
+\chapter{Dataset and Task Definition}
+\label{chap:dataset}
+
+The primary dataset used in this thesis is PatchCamelyon (PCAM), a patch-level benchmark derived from the CAMELYON16 challenge data \cite{veeling2018rotation}. PCAM contains fixed-size histopathology image patches extracted from lymph node tissue and is labeled for binary metastasis detection. In the context of this thesis, the binary task is interpreted as classification of a tissue patch into a non-metastatic or metastatic category.
+
+PCAM is appropriate for this work for several reasons. First, it provides a clearly defined binary classification task, which simplifies the interpretation of predictive uncertainty and calibration metrics. Second, it is widely used in pathology-related machine learning literature and therefore provides a recognizable benchmark. Third, the dataset is readily supported in the project implementation, enabling a reproducible workflow for both inference and evaluation.
+
+Within the codebase, PCAM is loaded through local dataset utilities and the torchvision PCAM dataset interface. The implemented pipeline supports training, validation, and test split selection, configurable sample limits for faster experimentation, and deterministic seeding for reproducibility. For the thesis, the main emphasis is on the test split because uncertainty evaluation should be reported on data that are not used for model fitting.
+
+The task treated in this thesis is patch-level binary classification rather than whole-slide diagnosis. This distinction is important. A patch-level benchmark is suitable for controlled experimentation and methodological comparison, but it does not capture all challenges of real clinical pathology workflows, such as slide-level aggregation, tissue heterogeneity, scanner variation, or workflow integration. The thesis therefore treats PCAM as a practical and methodologically clean benchmark, while recognizing that it is only a proxy for broader diagnostic use.
+
+The repository also contains support for folder-based and CSV-defined datasets. This makes the implementation reusable beyond PCAM. However, PCAM remains the main dataset for the present thesis because it aligns best with the current implementation status and provides the clearest foundation for formal uncertainty evaluation.

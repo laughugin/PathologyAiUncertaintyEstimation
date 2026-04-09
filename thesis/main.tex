@@ -1,0 +1,69 @@
+\documentclass[12pt,a4paper]{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{geometry}
+\usepackage{setspace}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{siunitx}
+\usepackage{csquotes}
+\usepackage[hidelinks]{hyperref}
+\usepackage[nameinlink,noabbrev]{cleveref}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage[backend=biber,style=ieee]{biblatex}
+
+\geometry{margin=1in}
+\onehalfspacing
+\setlist{nosep}
+\addbibresource{references.bib}
+
+\title{Uncertainty Estimation for AI-Assisted Digital Pathology}
+\author{Author Name}
+\date{\today}
+
+\begin{document}
+
+\begin{titlepage}
+    \centering
+    {\Large Thesis Draft\par}
+    \vspace{1.5cm}
+    {\huge\bfseries Uncertainty Estimation for AI-Assisted Digital Pathology\par}
+    \vspace{1.5cm}
+    {\Large Author Name\par}
+    \vspace{0.5cm}
+    {\large Supervisor: Tutor Name\par}
+    \vfill
+    {\large Department / University\par}
+    {\large \today\par}
+\end{titlepage}
+
+\pagenumbering{roman}
+\include{chapters/abstract_en}
+\include{chapters/acknowledgements}
+\tableofcontents
+\include{chapters/abbreviations}
+\clearpage
+
+\pagenumbering{arabic}
+\include{chapters/introduction}
+\include{chapters/purpose}
+\include{chapters/theoretical_introduction}
+\include{chapters/own_work}
+\include{chapters/summary}
+
+\appendix
+\include{chapters/appendix_notes}
+
+\printbibliography[heading=bibintoc,title={Bibliography}]
+
+\end{document}

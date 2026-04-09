@@ -1,0 +1,8 @@
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+This dissertation investigates uncertainty estimation for AI-assisted digital pathology in a binary patch-classification setting. The work is centered on PatchCamelyon (PCAM), where histopathology image patches are classified as normal tissue or metastatic tissue. Rather than proposing a new neural architecture, the dissertation focuses on the implementation, evaluation, and formal reporting of established uncertainty estimation methods applied to an existing image-classification pipeline.
+
+The implemented framework supports standard prediction confidence, Monte Carlo dropout, and deep ensembles. The experimental pipeline includes dataset handling, model loading, uncertainty-aware inference, metric computation, and artifact generation. Evaluation covers predictive performance, calibration, uncertainty-based error detection, and selective prediction. This makes it possible to study not only whether the classifier is accurate, but also whether its confidence estimates are informative and whether uncertain predictions can be identified for deferral.
+
+The dissertation contributes a reproducible software framework and a formal methodology for uncertainty evaluation in digital pathology. The obtained results show that the implemented pipeline can support reliable benchmarking and thesis-grade reporting, while also highlighting that stronger uncertainty methods do not automatically yield better results under every experimental condition. The work therefore emphasizes methodological rigor, implementation transparency, and practical relevance for trustworthy medical AI.
